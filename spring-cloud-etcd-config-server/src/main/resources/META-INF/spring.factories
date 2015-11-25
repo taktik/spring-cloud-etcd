@@ -1,0 +1,3 @@
+# Server Autoconfiguration
+org.springframework.boot.autoconfigure.EnableAutoConfiguration=\
+org.springframework.cloud.etcd.config.server.EtcdConfigServerAutoConfiguration

@@ -1,0 +1,3 @@
+# Monitor Autoconfiguration
+org.springframework.boot.autoconfigure.EnableAutoConfiguration=\
+org.springframework.cloud.etcd.monitor.EtcdMonitorAutoConfiguration

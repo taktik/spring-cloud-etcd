@@ -1,4 +1,20 @@
-package org.springframework.cloud.etcd.config;
+/*
+ * Copyright 2013-2015 the original author or authors.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package org.springframework.cloud.etcd.monitor;
 
 import mousio.client.promises.ResponsePromise;
 import mousio.client.retry.RetryPolicy;
@@ -10,6 +26,8 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.BeansException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cloud.bus.event.RefreshRemoteApplicationEvent;
+import org.springframework.cloud.etcd.config.EtcdConfigProperties;
+import org.springframework.cloud.etcd.config.EtcdConstants;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.ApplicationContextAware;
 import org.springframework.context.ApplicationEventPublisher;
@@ -19,6 +37,9 @@ import org.springframework.util.CollectionUtils;
 import javax.annotation.PostConstruct;
 import java.util.UUID;
 
+/**
+ * @author Jordan Demeulenaere
+ */
 public class EtcdMonitor
 		implements ApplicationEventPublisherAware,
 		ApplicationContextAware,
@@ -58,12 +79,12 @@ public class EtcdMonitor
 					.get();
 			if (response.node != null) {
 				process(response.node);
-				/* Send refresh to everyone */
-//				refreshEveryone();
 				syncWithEtcd();
+			} else {
+				log.warn("Unable to fetch configuration directory : " + prefix);
 			}
 		} catch (Exception e) {
-			log.warn("Unable to init property source: " + prefix, e);
+			log.warn("Unable to fetch configuration directory : " + prefix);
 		}
 	}
 
@@ -72,11 +93,6 @@ public class EtcdMonitor
 		applicationEventPublisher.publishEvent(
 				new RefreshRemoteApplicationEvent(this, this.contextId, destination));
 	}
-
-//	@EventListener
-//	public void handleRefreshRemoteApplicationEvent(RefreshRemoteApplicationEvent event) {
-//		log.info("Listened to refreshRemoteApplicationEvent");
-//	}
 
 	private void process(EtcdKeysResponse.EtcdNode node) {
 		lastModifiedIndex = Math.max(node.modifiedIndex, lastModifiedIndex);
@@ -122,8 +138,11 @@ public class EtcdMonitor
 							.split(etcdConfigProperties.getProfileSeparator());
 					String service = serviceWithProfilesArray[0];
 					refresh(service);
+				} else if (keyArray.length == 1 && etcdConfigProperties.getPrefix().equals(keyArray[0])) {
+					/* prefix directory has changed has changed, refresh everyone */
+					refresh("*");
 				} else {
-					log.info("Could not extract context from key: " + key);
+					log.info("Unable to extract context from key: " + key);
 				}
 			}
 		} catch (Exception e) {

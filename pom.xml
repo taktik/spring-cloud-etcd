@@ -29,7 +29,9 @@
 	<modules>
 		<module>spring-cloud-etcd-core</module>
 		<module>spring-cloud-etcd-config</module>
+		<module>spring-cloud-etcd-config-server</module>
 		<module>spring-cloud-etcd-discovery</module>
+		<module>spring-cloud-etcd-monitor</module>
 		<module>spring-cloud-etcd-sample</module>
 		<module>docs</module>
 	</modules>

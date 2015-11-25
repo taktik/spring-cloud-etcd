@@ -3,10 +3,10 @@
 		 xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
 	<modelVersion>4.0.0</modelVersion>
 
-	<artifactId>spring-cloud-etcd-config</artifactId>
+	<artifactId>spring-cloud-etcd-config-server</artifactId>
 	<packaging>jar</packaging>
-	<name>Spring Cloud Etcd Config</name>
-	<description>Spring Cloud Etcd Config</description>
+	<name>Spring Cloud Etcd Config Server</name>
+	<description>Spring Cloud Etcd Config Server</description>
 
 	<parent>
 		<groupId>org.springframework.cloud</groupId>
@@ -18,20 +18,11 @@
 	<dependencies>
 		<dependency>
 			<groupId>org.springframework.cloud</groupId>
-			<artifactId>spring-cloud-etcd-core</artifactId>
+			<artifactId>spring-cloud-etcd-config</artifactId>
 		</dependency>
 		<dependency>
 			<groupId>org.springframework.cloud</groupId>
-			<artifactId>spring-cloud-context</artifactId>
-		</dependency>
-		<dependency>
-			<groupId>com.netflix.archaius</groupId>
-			<artifactId>archaius-core</artifactId>
-		</dependency>
-		<!-- archaius dep -->
-		<dependency>
-			<groupId>commons-configuration</groupId>
-			<artifactId>commons-configuration</artifactId>
+			<artifactId>spring-cloud-config-server</artifactId>
 		</dependency>
 		<dependency>
 			<groupId>org.projectlombok</groupId>
