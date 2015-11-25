@@ -39,6 +39,11 @@ public class EtcdConfigBootstrapConfiguration {
 	private EtcdClient etcd;
 
 	@Bean
+	public EtcdEnvironmentRepository environmentRepository() {
+		return new EtcdEnvironmentRepository();
+	}
+
+	@Bean
 	public EtcdConfigProperties etcdConfigProperties() {
 		return new EtcdConfigProperties();
 	}
@@ -47,4 +52,5 @@ public class EtcdConfigBootstrapConfiguration {
 	public EtcdPropertySourceLocator etcdPropertySourceLocator() {
 		return new EtcdPropertySourceLocator(etcd, etcdConfigProperties());
 	}
+
 }
