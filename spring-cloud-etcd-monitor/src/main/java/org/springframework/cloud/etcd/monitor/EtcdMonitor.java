@@ -35,7 +35,7 @@ import org.springframework.context.ApplicationEventPublisherAware;
 import org.springframework.util.CollectionUtils;
 
 import javax.annotation.PostConstruct;
-import java.util.UUID;
+import java.util.*;
 
 /**
  * @author Jordan Demeulenaere
@@ -46,17 +46,29 @@ public class EtcdMonitor
 		ResponsePromise.IsSimplePromiseResponseHandler<EtcdKeysResponse> {
 
 	public static final Logger log = LoggerFactory.getLogger(EtcdMonitor.class);
+	public static final int successiveRequestsTimeoutMs = 1000;
 
 	private ApplicationEventPublisher applicationEventPublisher;
 	private String contextId = UUID.randomUUID().toString();
 
 	private long lastModifiedIndex = 0;
+	private long lastRefreshedIndex = 0;
+
 	@Autowired
 	private EtcdClient etcdClient;
 	@Autowired
 	private EtcdConfigProperties etcdConfigProperties;
 
 	private final RetryPolicy retryPolicy = new RetryWithExponentialBackOff(20, -1, -1);
+
+	private Timer refreshTimer;
+	private final Set<String> servicesToRefresh;
+	private TimerTask refreshTask;
+
+	public EtcdMonitor() {
+		servicesToRefresh = new HashSet<>();
+		refreshTimer = new Timer("EtcdRefresh", true);
+	}
 
 	@Override
 	public void setApplicationContext(ApplicationContext applicationContext) throws BeansException {
@@ -88,12 +100,6 @@ public class EtcdMonitor
 		}
 	}
 
-	public void refresh(String destination) {
-		log.info("Refresh for : " + destination);
-		applicationEventPublisher.publishEvent(
-				new RefreshRemoteApplicationEvent(this, this.contextId, destination));
-	}
-
 	private void process(EtcdKeysResponse.EtcdNode node) {
 		lastModifiedIndex = Math.max(node.modifiedIndex, lastModifiedIndex);
 
@@ -119,36 +125,82 @@ public class EtcdMonitor
 	}
 
 	@Override
-	public void onResponse(ResponsePromise<EtcdKeysResponse> responsePromise) {
+	public synchronized void onResponse(ResponsePromise<EtcdKeysResponse> responsePromise) {
 		try {
 			EtcdKeysResponse response = responsePromise.get();
 			if (response.node != null) {
-				process(response.node);
+				process(response.node); // update lastModifiedIndex
 
 				String key = response.node.key;
-				if (key.startsWith(EtcdConstants.PATH_SEPARATOR)) {
-					key = key.substring(1);
+				/* In case multiple keys are modified at the same time, we perform another request) */
+				String service = serviceForKey(key);
+				if (service != null) {
+					servicesToRefresh.add(service);
 				}
-
-				String[] keyArray = key.split(EtcdConstants.PATH_SEPARATOR);
-				if (keyArray.length >= 2) {
-					/* Refreshing the service */
-					String serviceWithProfiles = keyArray[1];
-					String[] serviceWithProfilesArray = serviceWithProfiles
-							.split(etcdConfigProperties.getProfileSeparator());
-					String service = serviceWithProfilesArray[0];
-					refresh(service);
-				} else if (keyArray.length == 1 && etcdConfigProperties.getPrefix().equals(keyArray[0])) {
-					/* prefix directory has changed has changed, refresh everyone */
-					refresh("*");
-				} else {
-					log.info("Unable to extract context from key: " + key);
+				if (refreshTask != null) {
+					refreshTask.cancel();
 				}
+				refreshTask = new TimerTask() {
+					@Override
+					public void run() {
+						refreshServices();
+					}
+				};
+				refreshTimer.schedule(refreshTask, successiveRequestsTimeoutMs);
+			} else {
+				log.warn("Unable to extract etcd response");
 			}
 		} catch (Exception e) {
+			e.printStackTrace();
 			log.warn("Unable to extract etcd response");
 		}
 		syncWithEtcd();
+	}
+
+	private synchronized void refreshServices() {
+		log.info("Refreshing services");
+		if (lastRefreshedIndex < lastModifiedIndex) {
+			if (servicesToRefresh.contains("*") ||
+					servicesToRefresh.contains(etcdConfigProperties.getDefaultContext())) {
+				refresh("*");
+			} else {
+				for (String service : servicesToRefresh) {
+					refresh(service);
+				}
+			}
+			servicesToRefresh.clear();
+			lastRefreshedIndex = lastModifiedIndex;
+		} else {
+			log.warn("No need to refresh");
+		}
+	}
+
+	public void refresh(String destination) {
+		log.info("Refresh for : " + destination);
+		applicationEventPublisher.publishEvent(
+				new RefreshRemoteApplicationEvent(this, this.contextId, destination));
+	}
+
+	public String serviceForKey(String key) {
+		if (key.startsWith(EtcdConstants.PATH_SEPARATOR)) {
+			key = key.substring(1);
+		}
+
+		String[] keyArray = key.split(EtcdConstants.PATH_SEPARATOR);
+		if (keyArray.length >= 2) {
+			/* Refreshing the service */
+			String serviceWithProfiles = keyArray[1];
+			String[] serviceWithProfilesArray = serviceWithProfiles
+					.split(etcdConfigProperties.getProfileSeparator());
+			String service = serviceWithProfilesArray[0];
+			return service;
+		} else if (keyArray.length == 1 && etcdConfigProperties.getPrefix().equals(keyArray[0])) {
+			/* prefix directory has changed, refresh everyone */
+			return "*";
+		} else {
+			log.info("Unable to extract context from key: " + key);
+			return null;
+		}
 	}
 
 }
