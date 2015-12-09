@@ -77,41 +77,44 @@ public class EtcdRestEndpoint {
 	}
 
 	@RequestMapping(value = "push", method = RequestMethod.POST)
-	public ResponseEntity push(@RequestBody Map<String, String> values) {
+	public ResponseEntity<String> push(@RequestBody Map<String, String> values) {
 		for (Map.Entry<String, String> entry : values.entrySet()) {
 			String key = entry.getKey();
 			String value = entry.getValue();
 			try {
 				etcdClient.put(key, value).send();
-			} catch (IOException e) {
+			} catch (Exception e) {
 				log.info(String.format("Unable to send set request for (%s, %s)", key, value));
+				return new ResponseEntity<>(HttpStatus.INTERNAL_SERVER_ERROR);
 			}
 		}
-		return new ResponseEntity(HttpStatus.OK);
+		return new ResponseEntity<>(HttpStatus.OK);
 	}
 
 	@RequestMapping(value = "rm", method = RequestMethod.POST)
-	public ResponseEntity delete(@RequestBody List<String> keys) {
+	public ResponseEntity<String> delete(@RequestBody List<String> keys) {
 		for (String key : keys) {
 			try {
 				etcdClient.delete(key).send();
-			} catch (IOException e) {
+			} catch (Exception e) {
 				log.info(String.format("Unable to send delete request for %s", key));
+				return new ResponseEntity<>(HttpStatus.INTERNAL_SERVER_ERROR);
 			}
 		}
-		return new ResponseEntity(HttpStatus.OK);
+		return new ResponseEntity<>(HttpStatus.OK);
 	}
 
 	@RequestMapping(value = "rmDir", method = RequestMethod.POST)
-	public ResponseEntity deleteDir(@RequestBody List<String> keys) {
+	public ResponseEntity<String> deleteDir(@RequestBody List<String> keys) {
 		for (String key : keys) {
 			try {
 				etcdClient.deleteDir(key).recursive().send();
 			} catch (IOException e) {
 				log.info(String.format("Unable to send delete request for %s", key));
+				return new ResponseEntity<>(HttpStatus.INTERNAL_SERVER_ERROR);
 			}
 		}
-		return new ResponseEntity(HttpStatus.OK);
+		return new ResponseEntity<>(HttpStatus.OK);
 	}
 
 
