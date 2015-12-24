@@ -82,8 +82,8 @@ public class EtcdRestEndpoint {
 			String key = entry.getKey();
 			String value = entry.getValue();
 			try {
-				etcdClient.put(key, value).send();
-			} catch (Exception e) {
+				etcdClient.put(key, value).send().get();
+			} catch (IOException|TimeoutException|EtcdException e) {
 				log.info(String.format("Unable to send set request for (%s, %s)", key, value));
 				return new ResponseEntity<>(HttpStatus.INTERNAL_SERVER_ERROR);
 			}
@@ -95,10 +95,13 @@ public class EtcdRestEndpoint {
 	public ResponseEntity<String> delete(@RequestBody List<String> keys) {
 		for (String key : keys) {
 			try {
-				etcdClient.delete(key).send();
-			} catch (Exception e) {
-				log.info(String.format("Unable to send delete request for %s", key));
-				return new ResponseEntity<>(HttpStatus.INTERNAL_SERVER_ERROR);
+				etcdClient.delete(key).send().get();
+			} catch (IOException|TimeoutException|EtcdException e) {
+				// Skip key not found exceptions
+				if (!(e instanceof EtcdException) || ((EtcdException) e).errorCode != 100 ) {
+					log.info(String.format("Unable to send delete request for %s", key));
+					return new ResponseEntity<>(HttpStatus.INTERNAL_SERVER_ERROR);
+				}
 			}
 		}
 		return new ResponseEntity<>(HttpStatus.OK);
@@ -108,10 +111,13 @@ public class EtcdRestEndpoint {
 	public ResponseEntity<String> deleteDir(@RequestBody List<String> keys) {
 		for (String key : keys) {
 			try {
-				etcdClient.deleteDir(key).recursive().send();
-			} catch (IOException e) {
-				log.info(String.format("Unable to send delete request for %s", key));
-				return new ResponseEntity<>(HttpStatus.INTERNAL_SERVER_ERROR);
+				etcdClient.deleteDir(key).recursive().send().get();
+			} catch (IOException|TimeoutException|EtcdException e) {
+				// Skip key not found exceptions
+				if (!(e instanceof EtcdException) || ((EtcdException) e).errorCode != 100 ) {
+					log.info(String.format("Unable to send delete request for %s", key));
+					return new ResponseEntity<>(HttpStatus.INTERNAL_SERVER_ERROR);
+				}
 			}
 		}
 		return new ResponseEntity<>(HttpStatus.OK);

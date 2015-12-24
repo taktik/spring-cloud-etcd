@@ -236,4 +236,11 @@
 			</pluginRepositories>
 		</profile>
 	</profiles>
+
+	<distributionManagement>
+		<snapshotRepository>
+			<id>maven-taktik</id>
+			<url>https://maven.taktik.be/content/repositories/snapshots/</url>
+		</snapshotRepository>
+	</distributionManagement>
 </project>
