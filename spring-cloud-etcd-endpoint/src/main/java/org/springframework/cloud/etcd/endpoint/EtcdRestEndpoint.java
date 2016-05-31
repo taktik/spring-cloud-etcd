@@ -16,6 +16,12 @@
 
 package org.springframework.cloud.etcd.endpoint;
 
+import java.io.IOException;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.TimeoutException;
+
 import mousio.etcd4j.EtcdClient;
 import mousio.etcd4j.responses.EtcdException;
 import mousio.etcd4j.responses.EtcdKeysResponse;
@@ -30,12 +36,6 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RestController;
-
-import java.io.IOException;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.concurrent.TimeoutException;
 
 /**
  * @author Jordan Demeulenaere
@@ -77,7 +77,7 @@ public class EtcdRestEndpoint {
 	}
 
 	@RequestMapping(value = "push", method = RequestMethod.POST)
-	public ResponseEntity<String> push(@RequestBody Map<String, String> values) {
+	public synchronized ResponseEntity<String> push(@RequestBody Map<String, String> values) {
 		for (Map.Entry<String, String> entry : values.entrySet()) {
 			String key = entry.getKey();
 			String value = entry.getValue();
@@ -92,7 +92,7 @@ public class EtcdRestEndpoint {
 	}
 
 	@RequestMapping(value = "rm", method = RequestMethod.POST)
-	public ResponseEntity<String> delete(@RequestBody List<String> keys) {
+	public synchronized ResponseEntity<String> delete(@RequestBody List<String> keys) {
 		for (String key : keys) {
 			try {
 				etcdClient.delete(key).send().get();
@@ -108,7 +108,7 @@ public class EtcdRestEndpoint {
 	}
 
 	@RequestMapping(value = "rmDir", method = RequestMethod.POST)
-	public ResponseEntity<String> deleteDir(@RequestBody List<String> keys) {
+	public synchronized ResponseEntity<String> deleteDir(@RequestBody List<String> keys) {
 		for (String key : keys) {
 			try {
 				etcdClient.deleteDir(key).recursive().send().get();
